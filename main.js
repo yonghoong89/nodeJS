@@ -55,7 +55,15 @@ var app = http.createServer(function(request,response){
                 var list = templateList(filelist)
                 fs.readFile(`data/${queryData.id}`,'utf8', function(err, description){
                     var title = queryData.id;
-                    var template = templateHTML(title, list, `<h2>${title}</h2><p>${description}</p>`,`<a href="/create">create</a> <a href="/update?id=${title}">Update</a>`);
+                    var template = templateHTML(title, list, `<h2>${title}</h2><p>${description}</p>`,`
+                    <a href="/create">create</a>
+                    <a href="/update?id=${title}">Update</a>
+                    <form action="delete_process" method="post">
+                        <input type="hidden" name="id" value="${title}">
+                        <input type="submit" value="delete">
+                    </form>
+                    `
+                    );
                     response.writeHead(200);
                     response.end(template);//읽어야 하는 파일을 결정함
                 });
@@ -65,7 +73,8 @@ var app = http.createServer(function(request,response){
         fs.readdir('./data', function(error, filelist){
             var title = 'WEB - create';
             var list = templateList(filelist)
-            var template = templateHTML(title, list, `<form action="/create_process" method="post">
+            var template = templateHTML(title, list, `
+        <form action="/create_process" method="post">
             <p><input type="text" name="title" placeholder="title"></p>
             <p>
                 <textarea name="description" placeholder="description"></textarea>
@@ -101,21 +110,51 @@ var app = http.createServer(function(request,response){
             var template = templateHTML(title, list,
               `
               <form action="/update_process" method="post">
-                <input type="hidden" name="id" value="${title}">
+                <input type="hidden" name="id" value="${title}" />
                 <p><input type="text" name="title" placeholder="title" value="${title}"></p>
                 <p>
-                  <textarea name="description" placeholder="description">${description}</textarea>
+                    <textarea name="description" placeholder="description">${description}</textarea>
                 </p>
                 <p>
-                  <input type="submit">
+                    <input type="submit">
                 </p>
-              </form>
+            </form>
               `,
               `<a href="/create">create</a> <a href="/update?id=${title}">update</a>`
             );
             response.writeHead(200);
             response.end(template);
           });
+        });
+    }else if(pathname==='/update_process'){
+        var body = '';
+        request.on('data', function(data){//각각 데이터가 전송될때 function(data)를 콜백하게 되어있다.
+           body = body + data;
+        });
+        request.on('end', function(){//정보수신이 끝난경우 function() 콜백 
+            var post = qs.parse(body);
+            var  id = post.id;
+            var title = post.title;
+            var description = post.description;
+            fs.rename(`data/${id}`,`data/${title}`, function(error){
+                fs.writeFile(`data/${title}`, description, 'utf8', function(err){
+                    response.writeHead(302, {Location: `/?id=${title}`});
+                    response.end();
+                });
+            });
+        });
+    }else if(pathname==='/delete_process'){
+        var body = '';
+        request.on('data', function(data){//각각 데이터가 전송될때 function(data)를 콜백하게 되어있다.
+           body = body + data;
+        });
+        request.on('end', function(){//정보수신이 끝난경우 function() 콜백 
+            var post = qs.parse(body);
+            var id = post.id;
+            fs.unlink(`data/${id}`, function(error){
+                response.writeHead(302, {Location: `/`});
+                response.end();
+            })
         });
     }else{
         console.log(pathname,'1234')
